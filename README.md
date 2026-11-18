@@ -12,9 +12,9 @@ Download the complete source code of any website (including all assets) 🔨.
 
 ## Description 📒
 
-The server mirrors a website with `wget`, compresses the result with `archiver`
-and streams progress back to the browser over a Socket.IO channel. When the zip
-is ready the page offers it for download.
+The server mirrors a website with `wget`, streams the result into a zip with
+`yazl` and sends progress back to the browser over a Socket.IO channel. When
+the zip is ready the page offers it for download.
 
 **wget flags used** (see `wget/index.js`):
 
@@ -49,7 +49,7 @@ downloads the archive from `/sites/<name>.zip`.
 
 ## Requirements 📦
 
-- Node.js 16 or newer (Node 18+ recommended)
+- Node.js 18 or newer (Node 20+ recommended)
 - `wget` on the `PATH`. The app shells out to it, and nothing will download without it:
   - Debian/Ubuntu: `apt install wget`
   - Fedora: `dnf install wget`
@@ -102,10 +102,10 @@ All settings are optional environment variables:
 ```text
 app.js, bin/www      Express app and HTTP/Socket.IO bootstrap
 routes/              Page routes
-views/               Handlebars templates (page, layout, error)
+views/               EJS templates and shared partials (page, error, header, footer)
 socket/socket.js     Validates requests and tracks one job per connection
 wget/index.js        Spawns wget, reports progress and handles failures
-archiver/index.js    Builds the zip and removes partial archives on failure
+lib/zip.js           Streams the archive with yazl and removes partial zips on failure
 lib/target.js        URL parsing and private-network guard
 lib/paths.js         Shared directories and TTL cleanup
 public/              Static assets and generated archives (public/sites)

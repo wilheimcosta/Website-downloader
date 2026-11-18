@@ -5,7 +5,7 @@ var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
 
-var archive = require('../archiver');
+var archive = require('../lib/zip');
 var paths = require('../lib/paths');
 var target = require('../lib/target');
 

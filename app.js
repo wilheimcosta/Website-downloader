@@ -10,7 +10,16 @@ var app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'hbs');
+app.set('view engine', 'ejs');
+
+// Do not advertise the framework in every response.
+app.disable('x-powered-by');
+
+// Every view has a title, including the error page rendered outside the router.
+app.use(function (req, res, next) {
+  res.locals.title = 'Website downloader - Take any website offline.';
+  next();
+});
 
 // Do not advertise the framework in every response.
 app.disable('x-powered-by');

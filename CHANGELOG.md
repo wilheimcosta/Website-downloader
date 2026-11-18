@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented here.
 
+## [0.2.0] - 2026-11-18
+
+Dependency and security refresh: `npm install` now finishes without deprecation
+warnings and `npm audit` reports **0 vulnerabilities** (previously 24).
+
+### Changed
+
+- Upgraded Express to 4.22.3, Socket.IO to 4.8.4, Morgan to 1.12.1,
+  cookie-parser to 1.4.7, debug to 4.4.3 and http-errors to 2.0.1.
+- Socket.IO 4 is served automatically to the page; the existing `io.connect`,
+  `socket.emit` and `socket.on` usage is unchanged.
+- Replaced `archiver` (and its deprecated `glob`/`inflight` chain) with the
+  streaming `yazl` writer in `lib/zip.js`. Archives keep the same layout and a
+  failed zip still gets removed.
+- Replaced the unmaintained `hbs`/Handlebars view layer with EJS
+  (`views/*.ejs` plus `views/partials/`). Output is escaped by default and the
+  error page no longer needs a Handlebars-specific layout.
+- Dropped 96 transitive packages: a clean install is now 98 packages instead of
+  194.
+- Node.js 18 or newer is required.
+
+### Fixed
+
+- A failed compression no longer leaves an empty/truncated zip behind: the
+  partial file is deleted after the output stream closes, avoiding the race
+  where the stream could recreate it.
+
 ## [0.1.0] - 2026-11-18
 
 ### Security
