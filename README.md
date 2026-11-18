@@ -11,20 +11,33 @@ Download the complete source code of any website (including all assets) 🔨.
 </div>
 
 ## Description 📒
- Website downloader works with `wget` and `archiver` to download all websites assets and compress then sends it back to the user through socket channel
- 
- **wget params the being used**
- 
- `wget --mirror --convert-links --adjust-extension --page-requisites 
---no-parent http://example.org`
 
- **Explanation of the various flags:**
+The server mirrors a website with `wget`, streams the result into a zip with
+`yazl` and sends progress back to the browser over a Socket.IO channel. When
+the zip is ready the page offers it for download.
 
- - --mirror – Makes (among other things) the download recursive.
-- --convert-links – convert all the links (also to stuff like CSS stylesheets) to relative, so it will be suitable for offline viewing.
-- --adjust-extension – Adds suitable extensions to filenames (html or css) depending on their content-type.
-- --page-requisites – Download things like CSS style-sheets and images required to properly display the page offline.
-- --no-parent – When recursing do not ascend to the parent directory. It useful for restricting the download to only a portion of the site
+**wget flags used** (see `wget/index.js`):
+
+```bash
+wget --mirror --convert-links --adjust-extension --page-requisites \
+     --no-parent --no-if-modified-since --timeout=20 --tries=2 \
+     --quota=100m http://example.org
+```
+
+**Explanation of the various flags:**
+
+- `--mirror` – Makes (among other things) the download recursive.
+- `--convert-links` – Converts links (including CSS stylesheets) to relative URLs, so the copy works offline.
+- `--adjust-extension` – Adds suitable extensions to filenames (`.html` or `.css`) depending on their content type.
+- `--page-requisites` – Downloads CSS, scripts and images required to display the page offline.
+- `--no-parent` – When recursing, does not ascend to the parent directory.
+- `--timeout` / `--tries` – Bound how long a broken host can hold a request.
+- `--quota` – Caps the size of a single mirror (`DOWNLOAD_QUOTA`).
+
+Each request downloads into its own temporary folder under `downloads/`. When it
+finishes, the folder is zipped into `public/sites/` and removed. The browser
+downloads the archive from `/sites/<name>.zip`.
+
 ### Deploy on cloud providers
 [![Run on Replit](https://binbashbanana.github.io/deploy-buttons/buttons/remade/replit.svg)](https://replit.com/github/AhmadIbrahiim/Website-downloader)
 [![Remix on Glitch](https://binbashbanana.github.io/deploy-buttons/buttons/remade/glitch.svg)](https://glitch.com/edit/#!/import/github/AhmadIbrahiim/Website-downloader)
@@ -36,29 +49,93 @@ Download the complete source code of any website (including all assets) 🔨.
 
 ## Requirements 📦
 
-- Node.js 16 or newer
+- Node.js 18 or newer (Node 20+ recommended)
 - `wget` on the `PATH`. The app shells out to it, and nothing will download without it:
   - Debian/Ubuntu: `apt install wget`
+  - Fedora: `dnf install wget`
   - macOS: `brew install wget`
   - Windows: `winget install JernejSimoncic.Wget`
 
-## How to run it 🤔
+The server checks for `wget` at startup and prints a warning when it is missing.
 
-- `git clone https://github.com/AhmadIbrahiim/Website-downloader.git`
-- `cd Website-downloader`
-- `$ npm install`
-- `$ npm start`
-- `http://localhost:3000/`
+## Running locally 🚀
 
-### Optional settings
+```bash
+git clone https://github.com/AhmadIbrahiim/Website-downloader.git
+cd Website-downloader
+
+npm ci          # reproducible install from package-lock.json
+# or: npm install
+
+npm start
+```
+
+Then open <http://localhost:3000/>.
+
+| Command | What it does |
+| --- | --- |
+| `npm start` | Starts the server on `PORT` (default `3000`) |
+| `npm run dev` | Same, with `NODE_ENV=development` (error pages include the stack trace) |
+| `npm test` | Runs the unit tests (no test framework needed) |
+| `PORT=8080 npm start` | Starts on another port (PowerShell: `$env:PORT=8080; npm start`) |
+| `ALLOW_PRIVATE_TARGETS=1 npm start` | Also allows `localhost`/private-network targets |
+
+The app creates `downloads/` and `public/sites/` automatically and cleans stale
+files at startup and every 30 minutes.
+
+## Configuration ⚙️
+
+All settings are optional environment variables:
 
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `PORT` | `3000` | Port the server listens on |
 | `DOWNLOAD_QUOTA` | `100m` | Size ceiling passed to wget, so one request cannot fill the disk |
 | `DOWNLOAD_TIMEOUT_MS` | `300000` | How long a single download may run before it is stopped |
+| `MAX_CONCURRENT_DOWNLOADS` | `5` | How many downloads may run at the same time |
+| `ARCHIVE_TTL_MS` | `21600000` (6 h) | How long generated zips stay in `public/sites` before cleanup |
+| `JOB_TTL_MS` | `3600000` (1 h) | How long a half-finished mirror in `downloads/` is kept |
+| `ALLOW_PRIVATE_TARGETS` | unset | Allow `localhost`/private-network addresses (blocked by default to prevent basic SSRF attempts) |
 
+## Project structure 🗂️
 
+```text
+app.js, bin/www      Express app and HTTP/Socket.IO bootstrap
+routes/              Page routes
+views/               EJS templates and shared partials (page, error, header, footer)
+socket/socket.js     Validates requests and tracks one job per connection
+wget/index.js        Spawns wget, reports progress and handles failures
+lib/zip.js           Streams the archive with yazl and removes partial zips on failure
+lib/target.js        URL parsing and private-network guard
+lib/paths.js         Shared directories and TTL cleanup
+public/              Static assets and generated archives (public/sites)
+test/                Node-based unit tests
+```
+
+## Tests 🧪
+
+```bash
+npm test
+```
+
+The suite covers address parsing, the private-network guard and the failure
+message selection. It uses only Node's built-in `assert`, so no extra
+dependencies are installed for testing.
+
+## Troubleshooting 🔧
+
+| Symptom | Cause / fix |
+| --- | --- |
+| `wget was not found on the PATH` | Install wget (see Requirements) and restart the server. |
+| `EADDRINUSE` on start | Another process uses the port; run with `PORT=8080 npm start`. |
+| "only downloads from public websites" | The target is `localhost` or a private IP. Use a public address, or set `ALLOW_PRIVATE_TARGETS=1` for an intranet mirror. |
+| "Nothing could be downloaded" | The site blocked the request (403, robots.txt, login wall) or redirected off-site. The message includes the relevant wget line. |
+| Download link stops working later | Archives expire after `ARCHIVE_TTL_MS`; start a new download. |
+| A large site times out | Raise `DOWNLOAD_TIMEOUT_MS` / `DOWNLOAD_QUOTA` or enter a more specific page URL. |
+
+## Changelog 📝
+
+See [CHANGELOG.md](CHANGELOG.md) for the changes in this revision.
 
 # How To Contribute:
  - Open Issue(s) with any bugs you notice.

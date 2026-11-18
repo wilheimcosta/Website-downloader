@@ -1,0 +1,221 @@
+<%- include('partials/header') %>
+<header>
+  <div aria-busy="true" id="progress" hidden aria-label="Loading, please wait." role="progressbar"></div>
+</header>
+<main role="main">
+  <img src="https://www.google.com/inbox/assets/images/intro/intro-logo.png" width="100" alt="" />
+  <h1>Website Downloader</h1>
+  <p>Download all the source code and assets of any website</p>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-12" style="float: none; margin: 0 auto;">
+        <div id="custom-search-input">
+          <form class="form" id="downloadForm" action="/" method="get">
+            <div class="input-group col-md-12">
+              <input type="text" class="form-control input-lg" id="website"
+                     placeholder="https://www.google.com" inputmode="url"
+                     autocomplete="url" autocapitalize="off" spellcheck="false"
+                     maxlength="2048" aria-label="Website address" />
+              <span class="input-group-btn">
+                <button class="btn btn-info btn-lg" id="download" type="submit"
+                        aria-label="Download website">
+                  <i class="glyphicon glyphicon-download" aria-hidden="true"></i>
+                </button>
+              </span>
+            </div>
+          </form>
+        </div>
+        <br>
+        <center>
+          <a class="github-button" href="https://github.com/Ahmadibrahiim/Website-downloader" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star Ahmadibrahiim/Website-downloader on GitHub">Star</a>
+        </center>
+
+        <a href="https://www.buymeacoffee.com/aibrahim" target="_blank" rel="noopener noreferrer"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
+      </div>
+      <br>
+    </div>
+  </div>
+  <h5 hidden id="nFilesP">Total Downloaded file: <span id="nFiles" style="color: red;font-weight: bold">0</span></h5>
+  <p class="log" id="log" role="status" aria-live="polite"></p>
+  <button type="button" class="btn btn-success" style="display: none">Download website assets</button>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<!-- Place this tag in your head or just before your close body tag. -->
+<script async defer src="https://buttons.github.io/buttons.js"></script>
+
+<script>
+  (function () {
+    'use strict';
+
+    var TOKEN_KEY = 'token';
+    // Must match the server-side check in socket/socket.js.
+    var TOKEN_RE = /^[A-Za-z0-9_-]{8,64}$/;
+    var TOKEN_LENGTH = 20;
+
+    var downloadBtn = document.getElementById('download');
+    var downloadLink = document.querySelector('.btn-success');
+    var websiteInput = document.getElementById('website');
+    var form = document.getElementById('downloadForm');
+    var progressBar = document.getElementById('progress');
+    var filesLine = document.getElementById('nFilesP');
+    var filesCount = document.getElementById('nFiles');
+    var log = document.getElementById('log');
+
+    var running = false;
+    var downloadedFiles = 0;
+    var archiveName = null;
+
+    function randomToken() {
+      var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      var values = null;
+      var token = '';
+
+      if (window.crypto && window.crypto.getRandomValues) {
+        values = new Uint32Array(TOKEN_LENGTH);
+        window.crypto.getRandomValues(values);
+      }
+
+      for (var i = 0; i < TOKEN_LENGTH; i++) {
+        var index = values ? values[i] % chars.length : Math.floor(Math.random() * chars.length);
+        token += chars[index];
+      }
+      return token;
+    }
+
+    function storedToken() {
+      try {
+        var saved = window.localStorage.getItem(TOKEN_KEY);
+        if (saved && TOKEN_RE.test(saved)) return saved;
+        var fresh = randomToken();
+        window.localStorage.setItem(TOKEN_KEY, fresh);
+        return fresh;
+      } catch (err) {
+        // Private browsing can block localStorage; an in-memory token is
+        // enough for this page view.
+        return randomToken();
+      }
+    }
+
+    function countCompleted(text) {
+      var lines = String(text).split(/[\r\n]+/);
+      var count = 0;
+      for (var i = 0; i < lines.length; i++) {
+        if (lines[i].indexOf('200 OK') !== -1) count++;
+      }
+      return count;
+    }
+
+    function lastLine(text) {
+      var lines = String(text).split(/[\r\n]+/);
+      for (var i = lines.length - 1; i >= 0; i--) {
+        if (lines[i].trim()) return lines[i].trim();
+      }
+      return '';
+    }
+
+    function showError(message) {
+      log.classList.add('log-error');
+      log.textContent = message;
+    }
+
+    function setRunning(value) {
+      running = value;
+      downloadBtn.disabled = value;
+    }
+
+    function resetView() {
+      downloadedFiles = 0;
+      filesCount.textContent = '0';
+      filesLine.hidden = true;
+      log.textContent = '';
+      log.classList.remove('log-error');
+      downloadLink.style.display = 'none';
+      downloadLink.onclick = null;
+      progressBar.hidden = false;
+    }
+
+    var token = storedToken();
+
+    if (typeof io !== 'function') {
+      showError('Could not connect to the server. Reload the page and try again.');
+      return;
+    }
+
+    // connect to the current socket.io server
+    var socket = io.connect(document.URL);
+
+    socket.on(token, function (event) {
+      if (!event || typeof event !== 'object') return;
+
+      if (event.error) {
+        setRunning(false);
+        progressBar.hidden = true;
+        downloadLink.style.display = 'none';
+        showError(event.error);
+        return;
+      }
+
+      if (typeof event.progress !== 'string') return;
+
+      if (event.progress === 'Converting') {
+        progressBar.hidden = false;
+        log.classList.remove('log-error');
+        log.textContent = '100%! Compressing your website...';
+        return;
+      }
+
+      if (event.progress === 'Completed') {
+        setRunning(false);
+        progressBar.hidden = true;
+        filesLine.hidden = true;
+        archiveName = event.file;
+        log.classList.remove('log-error');
+        log.textContent = 'Compression completed successfully!';
+
+        downloadLink.style.display = '';
+        downloadLink.textContent = 'Download ' + archiveName + '.zip';
+        downloadLink.onclick = function () {
+          window.location = '/sites/' + encodeURIComponent(archiveName) + '.zip';
+        };
+        return;
+      }
+
+      downloadedFiles += countCompleted(event.progress);
+      filesLine.hidden = downloadedFiles === 0;
+      filesCount.textContent = String(downloadedFiles);
+      log.classList.remove('log-error');
+      log.textContent = lastLine(event.progress);
+    });
+
+    socket.on('disconnect', function () {
+      if (!running) return;
+      setRunning(false);
+      progressBar.hidden = true;
+      showError('The connection to the server was lost. Please try again.');
+    });
+
+    function startDownload() {
+      if (running) return;
+
+      var website = websiteInput.value.trim();
+      if (!website) {
+        websiteInput.focus();
+        return;
+      }
+
+      resetView();
+      setRunning(true);
+      socket.emit('request', { token: token, website: website });
+    }
+
+    // Enter in the field submits the form; without preventDefault the
+    // browser requested the page with ?website=... and reloaded it.
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      startDownload();
+    });
+  }());
+</script>
+
+<%- include('partials/footer') %>

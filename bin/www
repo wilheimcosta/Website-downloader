@@ -7,6 +7,9 @@
 var app = require('../app');
 var debug = require('debug')('website-downloader:server');
 var http = require('http');
+var execFile = require('child_process').execFile;
+
+var paths = require('../lib/paths');
 
 /**
  * Get port from environment and store in Express.
@@ -15,6 +18,11 @@ var http = require('http');
 var port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
 
+// The app writes here, so create the directories before the first request and
+// drop anything a previous run left behind.
+paths.ensureDirs();
+sweep();
+
 /**
  * Create HTTP server.
  */
@@ -22,14 +30,22 @@ app.set('port', port);
 var server = http.createServer(app);
 var io = require('socket.io')(server);
 
-// Pass socket Object to it's modula 
-require('../socket/socket')(io)
+// Pass socket Object to it's modula
+require('../socket/socket')(io);
 /**
  * Listen on provided port, on all network interfaces.
  */
 
 server.listen(port, onListening);
 server.on('error', onError);
+
+// Warn about a missing wget at boot instead of only on the first download.
+execFile('wget', ['--version'], { timeout: 5000, windowsHide: true }, function (err) {
+  if (err) {
+    console.warn('wget was not found on the PATH; downloads will fail until it is installed ' +
+      '(apt install wget, brew install wget, or winget install JernejSimoncic.Wget).');
+  }
+});
 
 /**
  * Normalize a port into a number, string, or false.
@@ -89,4 +105,17 @@ function onListening() {
     ? 'pipe ' + addr
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
+  console.log('Website downloader listening on http://localhost:' + addr.port);
 }
+
+/**
+ * Removes stale working directories and expired archives once at startup and
+ * then twice an hour for as long as the process lives.
+ */
+function sweep() {
+  paths.sweep().catch(function (err) {
+    console.warn('Cleanup failed: ' + err.message);
+  });
+}
+
+setInterval(sweep, 30 * 60 * 1000).unref();
