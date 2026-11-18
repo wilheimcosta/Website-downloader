@@ -178,5 +178,13 @@ p {
 
 .log{
   max-width: 100%;
-text-align: center;
+  min-height: 1.4em;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.log-error {
+  color: #c0392b;
+  font-weight: 600;
 }
