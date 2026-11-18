@@ -21,6 +21,9 @@ app.use(function (req, res, next) {
   next();
 });
 
+// Do not advertise the framework in every response.
+app.disable('x-powered-by');
+
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
