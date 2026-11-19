@@ -1,49 +1,83 @@
 <%- include('partials/header') %>
-<header>
-  <div aria-busy="true" id="progress" hidden aria-label="Loading, please wait." role="progressbar"></div>
-</header>
-<main role="main">
-  <img src="https://www.google.com/inbox/assets/images/intro/intro-logo.png" width="100" alt="" />
-  <h1>Website Downloader</h1>
-  <p>Download all the source code and assets of any website</p>
-  <div class="container">
-    <div class="row">
-      <div class="col-lg-12" style="float: none; margin: 0 auto;">
-        <div id="custom-search-input">
-          <form class="form" id="downloadForm" action="/" method="get">
-            <div class="input-group col-md-12">
-              <input type="text" class="form-control input-lg" id="website"
-                     placeholder="https://www.google.com" inputmode="url"
-                     autocomplete="url" autocapitalize="off" spellcheck="false"
-                     maxlength="2048" aria-label="Website address" />
-              <span class="input-group-btn">
-                <button class="btn btn-info btn-lg" id="download" type="submit"
-                        aria-label="Download website">
-                  <i class="glyphicon glyphicon-download" aria-hidden="true"></i>
-                </button>
-              </span>
-            </div>
-          </form>
-        </div>
-        <br>
-        <center>
-          <a class="github-button" href="https://github.com/Ahmadibrahiim/Website-downloader" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star Ahmadibrahiim/Website-downloader on GitHub">Star</a>
-        </center>
+<div class="progress" id="progress" hidden role="progressbar" aria-label="Download in progress">
+  <span class="progress__bar"></span>
+</div>
 
-        <a href="https://www.buymeacoffee.com/aibrahim" target="_blank" rel="noopener noreferrer"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
+<main class="page">
+  <section class="hero">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M3 12h18"></path>
+        <path d="M12 3c2.4 2.5 3.7 5.7 3.7 9s-1.3 6.5-3.7 9c-2.4-2.5-3.7-5.7-3.7-9S9.6 5.5 12 3z"></path>
+      </svg>
+    </span>
+    <p class="eyebrow">Offline website mirror</p>
+    <h1>Take any website <span class="gradient">offline</span>.</h1>
+    <p class="lede">
+      Mirror pages, styles, scripts and images into a single archive you can
+      open anywhere, no connection required.
+    </p>
+  </section>
+
+  <section class="panel" id="panel">
+    <form class="search" id="downloadForm" action="/" method="get" novalidate>
+      <label class="sr-only" for="website">Website address</label>
+      <div class="search__field">
+        <span class="search__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.6 13.4a4.5 4.5 0 0 0 6.4 0l2-2a4.5 4.5 0 0 0-6.4-6.4l-1.1 1.1"></path>
+            <path d="M13.4 10.6a4.5 4.5 0 0 0-6.4 0l-2 2a4.5 4.5 0 0 0 6.4 6.4l1.1-1.1"></path>
+          </svg>
+        </span>
+        <input type="text" id="website" name="website"
+               placeholder="https://example.com" inputmode="url"
+               autocomplete="url" autocapitalize="off" spellcheck="false"
+               maxlength="2048" aria-describedby="hint" />
+        <button class="search__submit" id="download" type="submit" aria-label="Download website">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 4v12"></path>
+            <path d="m7 11 5 5 5-5"></path>
+            <path d="M5 20h14"></path>
+          </svg>
+          <span>Download</span>
+        </button>
       </div>
-      <br>
+      <p class="hint" id="hint">Works with public websites. Large sites can take a few minutes.</p>
+    </form>
+
+    <div class="status">
+      <p class="status__line" id="log" role="status" aria-live="polite"></p>
+      <div class="status__meta" id="nFilesP" hidden>
+        <span>Files fetched</span>
+        <strong id="nFiles">0</strong>
+      </div>
     </div>
-  </div>
-  <h5 hidden id="nFilesP">Total Downloaded file: <span id="nFiles" style="color: red;font-weight: bold">0</span></h5>
-  <p class="log" id="log" role="status" aria-live="polite"></p>
-  <button type="button" class="btn btn-success" style="display: none">Download website assets</button>
+
+    <a class="result" id="downloadLink" href="#" download hidden>
+      <span class="result__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m5 13 4 4L19 7"></path>
+        </svg>
+      </span>
+      <span class="result__text">
+        <strong>Your archive is ready</strong>
+        <small id="resultName"></small>
+      </span>
+      <span class="result__arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m9 6 6 6-6 6"></path>
+        </svg>
+      </span>
+    </a>
+  </section>
+
+  <footer class="foot">wget + yazl · self-hosted mirroring</footer>
 </main>
 
-<script src="/socket.io/socket.io.js"></script>
-<!-- Place this tag in your head or just before your close body tag. -->
-<script async defer src="https://buttons.github.io/buttons.js"></script>
+<div class="spotlight" aria-hidden="true"></div>
 
+<script src="/socket.io/socket.io.js"></script>
 <script>
   (function () {
     'use strict';
@@ -54,13 +88,16 @@
     var TOKEN_LENGTH = 20;
 
     var downloadBtn = document.getElementById('download');
-    var downloadLink = document.querySelector('.btn-success');
+    var downloadLink = document.getElementById('downloadLink');
+    var resultName = document.getElementById('resultName');
     var websiteInput = document.getElementById('website');
     var form = document.getElementById('downloadForm');
+    var panel = document.getElementById('panel');
     var progressBar = document.getElementById('progress');
     var filesLine = document.getElementById('nFilesP');
     var filesCount = document.getElementById('nFiles');
     var log = document.getElementById('log');
+    var spotlight = document.querySelector('.spotlight');
 
     var running = false;
     var downloadedFiles = 0;
@@ -114,31 +151,33 @@
       return '';
     }
 
-    function showError(message) {
-      log.classList.add('log-error');
+    function setStatus(message, isError) {
       log.textContent = message;
+      log.classList.toggle('is-error', Boolean(isError));
     }
 
     function setRunning(value) {
       running = value;
       downloadBtn.disabled = value;
+      panel.setAttribute('aria-busy', value ? 'true' : 'false');
     }
 
     function resetView() {
       downloadedFiles = 0;
       filesCount.textContent = '0';
       filesLine.hidden = true;
-      log.textContent = '';
-      log.classList.remove('log-error');
-      downloadLink.style.display = 'none';
-      downloadLink.onclick = null;
+      downloadLink.hidden = true;
+      downloadLink.removeAttribute('href');
+      resultName.textContent = '';
+      setStatus('Starting the mirror...');
       progressBar.hidden = false;
     }
 
     var token = storedToken();
 
     if (typeof io !== 'function') {
-      showError('Could not connect to the server. Reload the page and try again.');
+      setStatus('Could not connect to the server. Reload the page and try again.', true);
+      downloadBtn.disabled = true;
       return;
     }
 
@@ -151,8 +190,8 @@
       if (event.error) {
         setRunning(false);
         progressBar.hidden = true;
-        downloadLink.style.display = 'none';
-        showError(event.error);
+        downloadLink.hidden = true;
+        setStatus(event.error, true);
         return;
       }
 
@@ -160,8 +199,7 @@
 
       if (event.progress === 'Converting') {
         progressBar.hidden = false;
-        log.classList.remove('log-error');
-        log.textContent = '100%! Compressing your website...';
+        setStatus('Packaging the archive...');
         return;
       }
 
@@ -170,29 +208,26 @@
         progressBar.hidden = true;
         filesLine.hidden = true;
         archiveName = event.file;
-        log.classList.remove('log-error');
-        log.textContent = 'Compression completed successfully!';
-
-        downloadLink.style.display = '';
-        downloadLink.textContent = 'Download ' + archiveName + '.zip';
-        downloadLink.onclick = function () {
-          window.location = '/sites/' + encodeURIComponent(archiveName) + '.zip';
-        };
+        resultName.textContent = archiveName + '.zip';
+        downloadLink.href = '/sites/' + encodeURIComponent(archiveName) + '.zip';
+        downloadLink.hidden = false;
+        setStatus('Archive ready. Download it below.');
         return;
       }
 
       downloadedFiles += countCompleted(event.progress);
       filesLine.hidden = downloadedFiles === 0;
       filesCount.textContent = String(downloadedFiles);
-      log.classList.remove('log-error');
-      log.textContent = lastLine(event.progress);
+
+      var line = lastLine(event.progress);
+      if (line) setStatus(line);
     });
 
     socket.on('disconnect', function () {
       if (!running) return;
       setRunning(false);
       progressBar.hidden = true;
-      showError('The connection to the server was lost. Please try again.');
+      setStatus('The connection to the server was lost. Please try again.', true);
     });
 
     function startDownload() {
@@ -215,6 +250,25 @@
       event.preventDefault();
       startDownload();
     });
+
+    // Subtle spotlight that follows the mouse. Skipped on touch screens and
+    // when the visitor asked for reduced motion.
+    if (spotlight &&
+        window.matchMedia('(pointer: fine)').matches &&
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      var frame = null;
+      window.addEventListener('pointermove', function (event) {
+        if (frame) return;
+        var x = event.clientX;
+        var y = event.clientY;
+        frame = window.requestAnimationFrame(function () {
+          frame = null;
+          spotlight.style.setProperty('--spot-x', x + 'px');
+          spotlight.style.setProperty('--spot-y', y + 'px');
+          spotlight.classList.add('is-on');
+        });
+      }, { passive: true });
+    }
   }());
 </script>
 

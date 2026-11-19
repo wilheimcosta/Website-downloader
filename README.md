@@ -3,7 +3,6 @@ Download the complete source code of any website (including all assets) 🔨.
 
 👉 Live Demo: https://website-downloader.onrender.com
 
-![enter image description here](https://github.com/AhmadIbrahiim/Website-downloader/blob/master/public/Record.gif?raw=true)
 <div align="center">
 
   <a href="">![CodeFactor](https://www.codefactor.io/repository/github/ahmadibrahiim/website-downloader/badge)</a>
@@ -15,6 +14,10 @@ Download the complete source code of any website (including all assets) 🔨.
 The server mirrors a website with `wget`, streams the result into a zip with
 `yazl` and sends progress back to the browser over a Socket.IO channel. When
 the zip is ready the page offers it for download.
+
+The front end is a dark, responsive page with a single input, a live status
+line and a download card that appears as soon as the archive is ready. It has no
+runtime CSS or JS dependencies beyond the Socket.IO client served by the server.
 
 **wget flags used** (see `wget/index.js`):
 
@@ -143,7 +146,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the changes in this revision.
 
 ## Liked it ? You can buy a coffee:
 
-<a href="https://www.buymeacoffee.com/aibrahim" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
+Coffee link removed in this revision: the button no longer appears on the page.
 
 Thank you,
 

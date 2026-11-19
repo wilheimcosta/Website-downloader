@@ -23,6 +23,21 @@ warnings and `npm audit` reports **0 vulnerabilities** (previously 24).
   194.
 - Node.js 18 or newer is required.
 
+### Front end
+
+- New dark, responsive interface: animated aurora background, glass panel,
+  gradient headline, auto-focusable address field and a download card that
+  appears when the archive is ready.
+- Live feedback covers each stage (starting, fetching files, packaging,
+  ready) and shows protocol errors in a red status line.
+- Removed the GitHub star button/count and the Buy Me a Coffee button.
+- Dropped the Bootstrap CDN stylesheet; the page now ships a single local
+  stylesheet and no CSS framework.
+- Progress bar, hover states and entrance animations respect
+  `prefers-reduced-motion`.
+- The error page now uses the same layout and offers a link back to the
+  downloader.
+
 ### Fixed
 
 - A failed compression no longer leaves an empty/truncated zip behind: the
