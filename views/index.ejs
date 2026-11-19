@@ -1,0 +1,275 @@
+<%- include('partials/header') %>
+<div class="progress" id="progress" hidden role="progressbar" aria-label="Download in progress">
+  <span class="progress__bar"></span>
+</div>
+
+<main class="page">
+  <section class="hero">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M3 12h18"></path>
+        <path d="M12 3c2.4 2.5 3.7 5.7 3.7 9s-1.3 6.5-3.7 9c-2.4-2.5-3.7-5.7-3.7-9S9.6 5.5 12 3z"></path>
+      </svg>
+    </span>
+    <p class="eyebrow">Offline website mirror</p>
+    <h1>Take any website <span class="gradient">offline</span>.</h1>
+    <p class="lede">
+      Mirror pages, styles, scripts and images into a single archive you can
+      open anywhere, no connection required.
+    </p>
+  </section>
+
+  <section class="panel" id="panel">
+    <form class="search" id="downloadForm" action="/" method="get" novalidate>
+      <label class="sr-only" for="website">Website address</label>
+      <div class="search__field">
+        <span class="search__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.6 13.4a4.5 4.5 0 0 0 6.4 0l2-2a4.5 4.5 0 0 0-6.4-6.4l-1.1 1.1"></path>
+            <path d="M13.4 10.6a4.5 4.5 0 0 0-6.4 0l-2 2a4.5 4.5 0 0 0 6.4 6.4l1.1-1.1"></path>
+          </svg>
+        </span>
+        <input type="text" id="website" name="website"
+               placeholder="https://example.com" inputmode="url"
+               autocomplete="url" autocapitalize="off" spellcheck="false"
+               maxlength="2048" aria-describedby="hint" />
+        <button class="search__submit" id="download" type="submit" aria-label="Download website">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 4v12"></path>
+            <path d="m7 11 5 5 5-5"></path>
+            <path d="M5 20h14"></path>
+          </svg>
+          <span>Download</span>
+        </button>
+      </div>
+      <p class="hint" id="hint">Works with public websites. Large sites can take a few minutes.</p>
+    </form>
+
+    <div class="status">
+      <p class="status__line" id="log" role="status" aria-live="polite"></p>
+      <div class="status__meta" id="nFilesP" hidden>
+        <span>Files fetched</span>
+        <strong id="nFiles">0</strong>
+      </div>
+    </div>
+
+    <a class="result" id="downloadLink" href="#" download hidden>
+      <span class="result__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m5 13 4 4L19 7"></path>
+        </svg>
+      </span>
+      <span class="result__text">
+        <strong>Your archive is ready</strong>
+        <small id="resultName"></small>
+      </span>
+      <span class="result__arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m9 6 6 6-6 6"></path>
+        </svg>
+      </span>
+    </a>
+  </section>
+
+  <footer class="foot">wget + yazl · self-hosted mirroring</footer>
+</main>
+
+<div class="spotlight" aria-hidden="true"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  (function () {
+    'use strict';
+
+    var TOKEN_KEY = 'token';
+    // Must match the server-side check in socket/socket.js.
+    var TOKEN_RE = /^[A-Za-z0-9_-]{8,64}$/;
+    var TOKEN_LENGTH = 20;
+
+    var downloadBtn = document.getElementById('download');
+    var downloadLink = document.getElementById('downloadLink');
+    var resultName = document.getElementById('resultName');
+    var websiteInput = document.getElementById('website');
+    var form = document.getElementById('downloadForm');
+    var panel = document.getElementById('panel');
+    var progressBar = document.getElementById('progress');
+    var filesLine = document.getElementById('nFilesP');
+    var filesCount = document.getElementById('nFiles');
+    var log = document.getElementById('log');
+    var spotlight = document.querySelector('.spotlight');
+
+    var running = false;
+    var downloadedFiles = 0;
+    var archiveName = null;
+
+    function randomToken() {
+      var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      var values = null;
+      var token = '';
+
+      if (window.crypto && window.crypto.getRandomValues) {
+        values = new Uint32Array(TOKEN_LENGTH);
+        window.crypto.getRandomValues(values);
+      }
+
+      for (var i = 0; i < TOKEN_LENGTH; i++) {
+        var index = values ? values[i] % chars.length : Math.floor(Math.random() * chars.length);
+        token += chars[index];
+      }
+      return token;
+    }
+
+    function storedToken() {
+      try {
+        var saved = window.localStorage.getItem(TOKEN_KEY);
+        if (saved && TOKEN_RE.test(saved)) return saved;
+        var fresh = randomToken();
+        window.localStorage.setItem(TOKEN_KEY, fresh);
+        return fresh;
+      } catch (err) {
+        // Private browsing can block localStorage; an in-memory token is
+        // enough for this page view.
+        return randomToken();
+      }
+    }
+
+    function countCompleted(text) {
+      var lines = String(text).split(/[\r\n]+/);
+      var count = 0;
+      for (var i = 0; i < lines.length; i++) {
+        if (lines[i].indexOf('200 OK') !== -1) count++;
+      }
+      return count;
+    }
+
+    function lastLine(text) {
+      var lines = String(text).split(/[\r\n]+/);
+      for (var i = lines.length - 1; i >= 0; i--) {
+        if (lines[i].trim()) return lines[i].trim();
+      }
+      return '';
+    }
+
+    function setStatus(message, isError) {
+      log.textContent = message;
+      log.classList.toggle('is-error', Boolean(isError));
+    }
+
+    function setRunning(value) {
+      running = value;
+      downloadBtn.disabled = value;
+      panel.setAttribute('aria-busy', value ? 'true' : 'false');
+    }
+
+    function resetView() {
+      downloadedFiles = 0;
+      filesCount.textContent = '0';
+      filesLine.hidden = true;
+      downloadLink.hidden = true;
+      downloadLink.removeAttribute('href');
+      resultName.textContent = '';
+      setStatus('Starting the mirror...');
+      progressBar.hidden = false;
+    }
+
+    var token = storedToken();
+
+    if (typeof io !== 'function') {
+      setStatus('Could not connect to the server. Reload the page and try again.', true);
+      downloadBtn.disabled = true;
+      return;
+    }
+
+    // connect to the current socket.io server
+    var socket = io.connect(document.URL);
+
+    socket.on(token, function (event) {
+      if (!event || typeof event !== 'object') return;
+
+      if (event.error) {
+        setRunning(false);
+        progressBar.hidden = true;
+        downloadLink.hidden = true;
+        setStatus(event.error, true);
+        return;
+      }
+
+      if (typeof event.progress !== 'string') return;
+
+      if (event.progress === 'Converting') {
+        progressBar.hidden = false;
+        setStatus('Packaging the archive...');
+        return;
+      }
+
+      if (event.progress === 'Completed') {
+        setRunning(false);
+        progressBar.hidden = true;
+        filesLine.hidden = true;
+        archiveName = event.file;
+        resultName.textContent = archiveName + '.zip';
+        downloadLink.href = '/sites/' + encodeURIComponent(archiveName) + '.zip';
+        downloadLink.hidden = false;
+        setStatus('Archive ready. Download it below.');
+        return;
+      }
+
+      downloadedFiles += countCompleted(event.progress);
+      filesLine.hidden = downloadedFiles === 0;
+      filesCount.textContent = String(downloadedFiles);
+
+      var line = lastLine(event.progress);
+      if (line) setStatus(line);
+    });
+
+    socket.on('disconnect', function () {
+      if (!running) return;
+      setRunning(false);
+      progressBar.hidden = true;
+      setStatus('The connection to the server was lost. Please try again.', true);
+    });
+
+    function startDownload() {
+      if (running) return;
+
+      var website = websiteInput.value.trim();
+      if (!website) {
+        websiteInput.focus();
+        return;
+      }
+
+      resetView();
+      setRunning(true);
+      socket.emit('request', { token: token, website: website });
+    }
+
+    // Enter in the field submits the form; without preventDefault the
+    // browser requested the page with ?website=... and reloaded it.
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      startDownload();
+    });
+
+    // Subtle spotlight that follows the mouse. Skipped on touch screens and
+    // when the visitor asked for reduced motion.
+    if (spotlight &&
+        window.matchMedia('(pointer: fine)').matches &&
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      var frame = null;
+      window.addEventListener('pointermove', function (event) {
+        if (frame) return;
+        var x = event.clientX;
+        var y = event.clientY;
+        frame = window.requestAnimationFrame(function () {
+          frame = null;
+          spotlight.style.setProperty('--spot-x', x + 'px');
+          spotlight.style.setProperty('--spot-y', y + 'px');
+          spotlight.classList.add('is-on');
+        });
+      }, { passive: true });
+    }
+  }());
+</script>
+
+<%- include('partials/footer') %>
